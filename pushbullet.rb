@@ -7,8 +7,8 @@ require 'uri'
 out_file = File.new("api_key.config", "r")
 $api_key = out_file.read
 out_file.close
-$url_devices = 'https://api.pushbullet.com/api/devices'
-$url_push = 'https://api.pushbullet.com/api/pushes'
+$url_devices = 'https://api.pushbullet.com/v2/devices'
+$url_push = 'https://api.pushbullet.com/v2/pushes'
 
 
 
@@ -17,15 +17,15 @@ def get_device_id
 
     req = Net::HTTP::Get.new(uri)
     req.basic_auth $api_key, ''
-    res = Net::HTTP.start(uri.host, 80) {|http|
+    res = Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') {|http|
         http.request(req)
     }
 
     content = JSON.parse(res.body)
     devices = content['devices']
     devices.each do |device|
-        if device['extras']['android_version'].nil? == false
-            return device['id']
+        if device['android_version'].nil? == false
+            return device['iden']
         end
     end
 end
@@ -33,7 +33,7 @@ end
 
 def push (device_id, title = '', body)
     params = { 
-        'device_id' => device_id,
+        'device_iden' => device_id,
         'type' => 'note',
         'title' => title,
         'body' => body,
@@ -44,7 +44,12 @@ def push (device_id, title = '', body)
     req.basic_auth $api_key, ''
     req.set_form_data(params)
 
-    res = Net::HTTP.new(uri.host, 80).start {|http|
+    http_request = Net::HTTP.new(uri.host, uri.port)
+    if uri.scheme =='https'
+        http_request.use_ssl = true
+    end
+
+    res = http_request.start {|http|
         http.request(req)
     }
 
